@@ -1,4 +1,5 @@
 #define ALLOCA			/*use alloca instead of malloc, better performance*/
+#define FREE			/*free allocated memory, less memory usage, more overhead*/
 #define EXTENSION ".reply"	/*extension to append to filename*/
 #define MODE 00664		/*permissions for created file*/
 #define FLAGS O_WRONLY|O_CREAT	/*flags for created file*/

@@ -98,6 +98,9 @@ read_check:
             fprintf(stderr, "write() failed\n");
             return 1;
         }
+#ifdef FREE
+        free(buf);
+#endif
     }
 /* Never reached */
     return 0;
