@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <fcntl.h>
-#include <unistd.h>
 #include "replyto.h"
 
 int main(int argc, char **argv)
@@ -26,81 +25,37 @@ int main(int argc, char **argv)
         argv[1] = FILENAME;
     }
 
-    if (strlen(argv[1]) > MAX_FILENAME) {
-        fprintf(stderr, "Filename too big\n");
-        return 1;
-    }
-#ifdef ALLOCA
-    char *filename = (char*)alloca(strlen(argv[1]) + sizeof(EXTENSION));
-#else
-    char *filename = (char*)malloc(strlen(argv[1]) + sizeof(EXTENSION));
+    char filename[MAX_FILENAME + sizeof(EXTENSION)];
 
-    if (!filename) {
-        fprintf(stderr, "Failed to allocate memory\n");
+    *stpncpy(stpncpy(filename, argv[1], MAX_FILENAME), EXTENSION, sizeof(EXTENSION) - 1) == '\0';
+    FILE *f = (argc == 1 || (argc == 2 && stdout_flag)) ? stdin : fopen(argv[1], "r");
+
+    if (!f) {
+        fprintf(stderr, "Failed to open file for reading\n");
         return 1;
     }
-#endif
-    strcpy(filename, argv[1]);
-    strcat(filename, EXTENSION);
-    FILE *ifp;
-    if(argc == 1 || (argc == 2 && stdout_flag)) {
-        ifp = stdin;
-    }
-    else {
-        ifp = fopen(argv[1], "r");
-        if (!ifp) {
-            fprintf(stderr, "Failed to open file for reading\n");
-            return 1;
-        }
-    }
-goto loop;
-open_fd:
-#ifndef STDOUT
-    int ofd = open(filename, FLAGS, MODE);
-    if (ofd == -1) {
+
+    FILE *g = stdout_flag ? stdout : fopen(filename, "w");
+
+    if (!g) {
         fprintf(stderr, "Failed to open file for writing\n");
         return 1;
     }
-#else
-    int ofd;
-    if(stdout_flag) {
-        ofd = STDOUT;
-    }
-    else {
-        ofd = open(filename, FLAGS, MODE);
-    }
-    if (ofd == -1) {
-        fprintf(stderr, "Failed to open file for writing\n");
-        return 1;
-    }
-#endif
-goto read_check;
-loop:
-int read = 0;
+
+    fprintf(g, ">");
+
     for(;;) {
-        char *buf = NULL;
-        size_t buflen = BUFLEN;
-        int nread = getline(&buf, &buflen, ifp);
-        if(nread == -1) {
+        char c;
+        if (fscanf(f, "%c", &c) == EOF) {
+            fprintf(g, "\n");
             return 0;
         }
-/*madness to not open empty file if not needed*/
-read_check:
-        if(!read) {
-            read = 1;
-            goto open_fd;
+
+        fprintf(g, "%c", c);
+
+        if (c == '\n') {
+            fprintf(g, ">");
         }
-        if(write(ofd, ">", 1) == -1) {
-            fprintf(stderr, "write() failed\n");
-            return 1;
-        }
-        if(write(ofd, buf, nread) == -1) {
-            fprintf(stderr, "write() failed\n");
-            return 1;
-        }
-#ifdef FREE
-        free(buf);
-#endif
     }
 /* Never reached */
     return 0;
